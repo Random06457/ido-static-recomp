@@ -144,7 +144,7 @@ static char ctype[] = { 0,
          0,      0,      0,      0,      0,      0,      0,      0
 };
 
-#define REDIRECT_USR_BIN(path) if (!memcmp(path, "/usr/lib/", 9)) { strcpy(path, path+9); }
+#define REDIRECT_USR_BIN(path, pathSize) if (!memcmp(path, "/usr/lib/", 9)) { memmove(path, path+9, pathSize+1-9); }
 
 int main(int argc, char *argv[]) {
     int ret;
@@ -2080,7 +2080,8 @@ int wrapper_execvp(uint8_t *mem, uint32_t file_addr, uint32_t argv_addr) {
     }
     argv[argc] = NULL;
 #ifdef REDIRECT_USR_BIN
-    REDIRECT_USR_BIN(file);
+    REDIRECT_USR_BIN(file, file_len);
+    fprintf(stderr, "%s", file);
 #endif
     execvp(file, argv);
     MEM_U32(ERRNO_ADDR) = errno;

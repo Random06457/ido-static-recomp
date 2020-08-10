@@ -5,8 +5,8 @@
 #include <math.h>
 #include <assert.h>
 
-#include "libc_impl.h"
-#include "helpers.h"
+#include "../libc_impl.h"
+#include "../helpers.h"
 
 #define RM_RN 0
 #define RM_RZ 1
