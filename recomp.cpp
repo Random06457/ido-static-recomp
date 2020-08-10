@@ -451,6 +451,45 @@ static void pass1(void) {
                     if (insns[lw].id != MIPS_INS_LW) {
                         --lw;
                     }
+#ifdef IDO71
+                    if (insns[lw].id == MIPS_INS_LW && insns[lw].linked_insn != -1) {
+                        int sltiu_index = -1;
+                        if (insns[lw - 3].id != MIPS_INS_ANDI) {
+                            for (int j = 5; j <= 14; j++) {
+                                if (insns[lw - has_extra - j].id == MIPS_INS_SLTIU) {
+                                    sltiu_index = j;
+                                    break;
+                                }
+                            }
+                        }
+                        uint32_t num_cases;
+                        bool found = false;
+                        bool and_variant = false;
+                        if (sltiu_index != -1 && insns[lw - has_extra - sltiu_index].id == MIPS_INS_SLTIU) {
+                            num_cases = insns[lw - has_extra - sltiu_index].operands[2].imm;
+                            found = true;
+                        } else if (insns[lw - 3].id == MIPS_INS_ANDI) {
+                            num_cases = insns[lw - 3].operands[2].imm + 1;
+                            found = true;
+                            and_variant = true;
+                        }
+                        if (found) {
+                            uint32_t jtbl_addr = insns[lw].linked_value;
+                            uint32_t index_reg = insns[lw - 2].operands[1].reg;
+                            //printf("jump table at %08x, size %u\n", jtbl_addr, num_cases);
+                            insn.jtbl_addr = jtbl_addr;
+                            insn.num_cases = num_cases;
+                            insn.index_reg = index_reg;
+                            if (is_pic) {
+                                insns[i - 1].id = MIPS_INS_NOP;
+                            }
+                            insns[lw].id = MIPS_INS_NOP;
+                            insns[lw - 1].id = MIPS_INS_NOP;
+                            insns[lw - 2].id = MIPS_INS_NOP;
+                            if (!and_variant) {
+                                insns[lw - 3].id = MIPS_INS_NOP;
+                            }
+#else
                     if (insns[lw].id == MIPS_INS_LW && insns[lw].linked_insn != -1) {
                         int sltiu_index = -1;
                         int andi_index = -1;
@@ -504,6 +543,7 @@ static void pass1(void) {
                             if (!and_variant) {
                                 insns[addu_index - 2].id = MIPS_INS_NOP;
                             }
+#endif
 
                             if (jtbl_addr < rodata_vaddr || jtbl_addr + num_cases * sizeof(uint32_t) > rodata_vaddr + rodata_section_len) {
                                 fprintf(stderr, "jump table outside rodata\n");

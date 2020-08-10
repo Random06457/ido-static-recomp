@@ -86,7 +86,7 @@ def main(args):
         std_flag = "-std=c++11"
 
     recomp_path = os.path.join(build_dir, "recomp")
-    call("g++ recomp.cpp -o " + recomp_path + " -g -lcapstone " + std_flag)
+    call("g++ recomp.cpp -o " + recomp_path + " -g -lcapstone " + std_flag + ido_flag)
     
     threads = []
     for prog in BINS:
@@ -97,12 +97,13 @@ def main(args):
     for t in threads:
         t.join()
 
-    with open(os.path.join(out_dir, "ido_wrapper.sh"), "w") as wrapper:
+    with open(os.path.join(out_dir, "cc_wrapper.sh"), "w") as wrapper:
         wrapper.write(
             '#!/bin/bash\n' \
             'export PATH=$(dirname "$0"):$PATH\n' \
-            '$@\n'
+            '$(dirname "$0")/cc $@\n'
         )
+    os.chmod(os.path.join(out_dir, "cc_wrapper.sh"), 0o777)
 
 
 if __name__ == "__main__":
