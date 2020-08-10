@@ -42,6 +42,10 @@ def main(args):
 
     if not os.path.exists(build_dir):
         os.mkdir(build_dir)
+    
+    out_dir = os.path.join(build_dir, "out")
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
 
     std_flag = ""
     if platform.system() == "Darwin":
@@ -54,36 +58,57 @@ def main(args):
         print("*******************************************************************")
         print(ido_path + prog)
 
-        out_file_path = os.path.join(build_dir, os.path.basename(prog))
-        c_file_path = out_file_path + "_c.c"
-        o_file_path = out_file_path + "_c.o"
+        c_file_path = os.path.join(build_dir, os.path.basename(prog) + "_c.c")
+        o_file_path = os.path.join(build_dir, os.path.basename(prog) + "_c.o")
+        out_file_path = os.path.join(out_dir, os.path.basename(prog))
 
-        with open(c_file_path, "w") as cFile:
-            call(recomp_path + " " + ido_path + prog, cFile)
+        if not args.onlylibc:
+            with open(c_file_path, "w") as cFile:
+                call(recomp_path + " " + ido_path + prog, cFile)
 
-        with open("skeleton.c", "r") as skeleton:
-            text = re.sub(
-                    r"#include \"([^\r\n]+).c\"",
-                    "#include \"" + c_file_path + "\"",
-                    skeleton.read()
-                )
-        with open("skeleton.c", "w") as skeleton:
-            skeleton.write(text)
+            with open("skeleton.c", "r") as skeleton:
+                text = re.sub(
+                        r"#include \"([^\r\n]+).c\"",
+                        "#include \"" + c_file_path + "\"",
+                        skeleton.read()
+                    )
+            with open("skeleton.c", "w") as skeleton:
+                skeleton.write(text)
 
         o2_flag = "" if not args.O2 else " -O2"
-        call("gcc skeleton.c -c -o " + o_file_path + " -g -fno-strict-aliasing" + o2_flag)
+        if not args.onlylibc:
+            call("gcc skeleton.c -c -o " + o_file_path + " -g -fno-strict-aliasing" + o2_flag)
 
         pie_flag = " -no-pie"
         if platform.system() == "Darwin":
             pie_flag = " -fno-pie"
 
-        call("gcc libc_impl.c " + o_file_path + " -o " + out_file_path + " -g -fno-strict-aliasing" + pie_flag
+        call("gcc libc_impl.c " + o_file_path + " -o " + out_file_path + " -lm -g -fno-strict-aliasing" + pie_flag
              + o2_flag + ido_flag)
+
+
+    # this is just to avoid changes in git
+    with open("skeleton.c", "r") as skeleton:
+        text = re.sub(
+                r"#include \"([^\r\n]+).c\"",
+                "#include \"dummy.c\"",
+                skeleton.read()
+            )
+    with open("skeleton.c", "w") as skeleton:
+        skeleton.write(text)
+
+    with open(os.path.join(out_dir, "ido_wrapper.sh"), "w") as wrapper:
+        wrapper.write(
+            '#!/bin/bash\n' \
+            'export PATH=$(dirname "$0"):$PATH\n' \
+            '$@\n'
+        )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Static ido recompilation build utility")
     parser.add_argument("ido_path", help="Path to ido")
     parser.add_argument("-O2", help="Build binaries with -O2 (warning: may take forever)", action='store_true')
+    parser.add_argument("-onlylibc", help="Builds libc_impl.c only", action='store_true')
     rgs = parser.parse_args()
     main(rgs)
