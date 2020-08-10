@@ -2081,7 +2081,6 @@ int wrapper_execvp(uint8_t *mem, uint32_t file_addr, uint32_t argv_addr) {
     argv[argc] = NULL;
 #ifdef REDIRECT_USR_BIN
     REDIRECT_USR_BIN(file, file_len);
-    fprintf(stderr, "%s", file);
 #endif
     execvp(file, argv);
     MEM_U32(ERRNO_ADDR) = errno;
